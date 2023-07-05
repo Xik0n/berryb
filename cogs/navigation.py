@@ -374,7 +374,6 @@ class Navigation(commands.Cog):
             skin = DBproduct.find_one({"_id": inter.author.id})['товар']
             code_find = dbcode.find_one({"_id": "code"})
             code = code_find['number']
-            dbcode.update_one({"_id": "code"}, {"$inc": {"number": 1}})
             current_date = datetime.datetime.now()
             due_date = current_date + datetime.timedelta(days=5)
             formatted_date = f"{due_date.day}.{due_date.month:02d}.{due_date.year} {due_date.hour:02d}:{due_date.minute:02d}"
@@ -396,7 +395,7 @@ class Navigation(commands.Cog):
                 if synced_thread_doc:
                     source_thread_id = synced_thread_doc["target_thread_id"]
                 th = self.bot.get_channel(int(source_thread_id))
-                msg = await th.send(random_select_classic.mentio, else_artist.mention)
+                msg = await th.send(random_select_classic.mention, else_artist.mention)
                 await msg.delete()
                 date = DBdates.find_one({"_id": user.id})
                 if date:
@@ -508,6 +507,14 @@ class Navigation(commands.Cog):
                 if date:
                     formatted_date = date['date']
                 orders.update_one({"_id": else_artist.id}, {"$push": {'orders': f'#{code}: • Товар: Плащ сдать до {formatted_date}'}}, upsert=True)
+            synced_thread = synced_threads.find_one({"source_thread_id": inter.channel.id})
+            if synced_thread:
+                target_thread_id = synced_thread["target_thread_id"]
+                chl = self.bot.get_channel(int(target_thread_id))
+                await chl.edit(name=f'Заказ {code}')
+            dbcode.update_one({"_id": "code"}, {"$inc": {"number": 1}})
+
+            
             
 
     @commands.Cog.listener()
@@ -528,7 +535,6 @@ class Navigation(commands.Cog):
                     skin = DBproduct.find_one({"_id": inter.author.id})['товар']
                     code_find = dbcode.find_one({"_id": "code"})
                     code = code_find['number']
-                    dbcode.update_one({"_id": "code"}, {"$inc": {"number": 1}})
                     current_date = datetime.datetime.now()
                     due_date = current_date + datetime.timedelta(days=5)
                     formatted_date = f"{due_date.day}.{due_date.month:02d}.{due_date.year} {due_date.hour:02d}:{due_date.minute:02d}"
@@ -663,10 +669,13 @@ class Navigation(commands.Cog):
                             formatted_date = date['date']
                         orders.update_one({"_id": else_artist.id}, {"$push": {'orders': f'#{code}: • Товар: Плащ сдать до {formatted_date}'}}, upsert=True)
 
-                    try: 
-                        await p2p.reject_p2p_bill(bill_id=bill_id)
-                    except:
-                        print('i cant')
+                    synced_thread = synced_threads.find_one({"source_thread_id": inter.channel.id})
+                    if synced_thread:
+                        target_thread_id = synced_thread["target_thread_id"]
+                        chl = self.bot.get_channel(int(target_thread_id))
+                        await chl.edit(name=f'Заказ {code}')
+                    dbcode.update_one({"_id": "code"}, {"$inc": {"number": 1}})
+
                     qiwi_base.delete_one({"_id": inter.author.id})
                 if check_p2p == 'WAITING':
                     await inter.send('Упс! Оплата еще не найдена. Если Вы оплатили заказ — попробуйте нажать через минуту.', ephemeral=True)
