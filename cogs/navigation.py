@@ -208,105 +208,148 @@ class Navigation(commands.Cog):
         self.rating = {}
         self.send_to_target = {}
     
+    @commands.command()
+    async def a(self, inter):
+        self.send_to_target[1126148662364491888] = 1
+        self.send_to_target[1126147090951716944] = 1
+        self.send_to_target[1126146162030809189] = 1
+        self.send_to_target[1126146028983287959] = 1
+        self.send_to_target[1126146027259445268] = 1
+        print('done')
+
+    
     @commands.Cog.listener()
     async def on_message(self, message):
         if isinstance(message.channel, disnake.Thread) and message.channel.parent_id == 1126113100928663562:
             if not message.author.bot:
                 message_channel_find = thread_messages_coll.find_one({"_id": message.channel.id})
-                value = message_channel_find['value']
-            if not message.author.bot and int(value) == 1:
-                product = DBproduct.find_one({"_id": message.author.id})['товар']
-                summa = DBprice.find_one({'_id': message.author.id})['цена']
-                old_url_find = qiwi_base.find_one({"_id": message.author.id})
-                if old_url_find is not None:
-                    bill_find = old_url_find['bill_id']
-                    try:
-                        await p2p.reject_p2p_bill(bill_id=bill_find)
-                    except:
-                        pass
-                new_bill = await p2p.create_p2p_bill(bill_id=random.randint(10000000, 9999999999), amount=int(summa), comment=f'Новая покупка —\nКлиент: {message.author}\nТовар: {product}', theme_code="Egor-TsD9p1Nh-7j")
-                shim_url = p2p.create_shim_url(new_bill)
-                qiwi_base.update_many({'_id': message.author.id}, {'$set': {'bill_id': str(new_bill.id), 'pay_url': str(shim_url)}}, upsert=True)
-                embed = disnake.Embed(description=f'Отлично, заказ почти оформлен, осталось только оплатить!\nС Вас ``{summa}`` рублей, после оплаты мы сразу начнем выполнять ваш заказ.')
-                await message.reply(embed=embed, components=[
-                    disnake.ui.Button(label='Оплатить', style=disnake.ButtonStyle.url, url=f'{shim_url}'),
-                    disnake.ui.Button(label='Проверить оплату', style=disnake.ButtonStyle.blurple, custom_id='check')
-                ], mention_author=False)
-                thread_messages_coll.update_one({"_id": message.channel.id}, {"$set": {'value': 0}})
+                if message_channel_find is None:
+                    return
+                else:
+                    value = message_channel_find['value']
+                    if not message.author.bot and int(value) == 1:
+                        product = DBproduct.find_one({"_id": message.author.id})['товар']
+                        summa = DBprice.find_one({'_id': message.author.id})['цена']
+                        old_url_find = qiwi_base.find_one({"_id": message.author.id})
+                        if old_url_find is not None:
+                            bill_find = old_url_find['bill_id']
+                            try:
+                                await p2p.reject_p2p_bill(bill_id=bill_find)
+                            except:
+                                pass
+                        new_bill = await p2p.create_p2p_bill(bill_id=random.randint(10000000, 9999999999), amount=int(summa), comment=f'Новая покупка —\nКлиент: {message.author}\nТовар: {product}', theme_code="Egor-TsD9p1Nh-7j")
+                        shim_url = p2p.create_shim_url(new_bill)
+                        qiwi_base.update_many({'_id': message.author.id}, {'$set': {'bill_id': str(new_bill.id), 'pay_url': str(shim_url)}}, upsert=True)
+                        embed = disnake.Embed(description=f'Отлично, заказ почти оформлен, осталось только оплатить!\nС Вас ``{summa}`` рублей, после оплаты мы сразу начнем выполнять ваш заказ.')
+                        await message.reply(embed=embed, components=[
+                            disnake.ui.Button(label='Оплатить', style=disnake.ButtonStyle.url, url=f'{shim_url}'),
+                            disnake.ui.Button(label='Проверить оплату', style=disnake.ButtonStyle.blurple, custom_id='check')
+                        ], mention_author=False)
+                        thread_messages_coll.update_one({"_id": message.channel.id}, {"$set": {'value': 0}})
+        
         if not message.author.bot:
-            source_channel_id = 1126113100928663562
-            target_channel_id = 1124389034131730492
-            source_channel = self.bot.get_channel(source_channel_id)
-            target_channel = self.bot.get_channel(target_channel_id)
-            source_thread = next((t for t in source_channel.threads if t.id == message.channel.id), None)
-            target_thread = next((t for t in target_channel.threads if t.id == message.channel.id), None)
-
-            if source_thread:
-                synced_thread = synced_threads.find_one({"source_thread_id": source_thread.id})
-                if synced_thread:
-                    target_thread_id = synced_thread["target_thread_id"]
-                    target_thread = target_channel.get_thread(target_thread_id)
-                    if target_thread:
-                        if message.content:
-                            if message.channel.id not in self.send_to_target:
-                                product = DBproduct.find_one({"_id": message.author.id})['товар']
-                                hands = DBtype.find_one({"_id": message.author.id})['руки']
-                                current_date = datetime.datetime.now()
-                                due_date = current_date + datetime.timedelta(days=5)
-                                formatted_date = f"{due_date.day}.{due_date.month:02d}.{due_date.year} {due_date.hour:02d}:{due_date.minute:02d}"
-                                if product in ['Тотем', 'Аватар', 'Плащ', 'GIF-Аватар']:
-                                    msg = f"🛒 Новый заказ:\n\n{product}\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+            product_doc = DBproduct.find_one({"_id": message.author.id})
+            if product_doc:
+                source_channel_id = 1126113100928663562
+                target_channel_id = 1124389034131730492
+                source_channel = self.bot.get_channel(source_channel_id)
+                target_channel = self.bot.get_channel(target_channel_id)
+                source_thread = next((t for t in source_channel.threads if t.id == message.channel.id), None)
+                target_thread = next((t for t in target_channel.threads if t.id == message.channel.id), None)
+                if source_thread:
+                    synced_thread = synced_threads.find_one({"source_thread_id": source_thread.id})
+                    if synced_thread:
+                        target_thread_id = synced_thread["target_thread_id"]
+                        target_thread = target_channel.get_thread(target_thread_id)
+                        if target_thread:
+                            if message.content:
+                                if message.channel.id not in self.send_to_target:
+                                    product = DBproduct.find_one({"_id": message.author.id})['товар']
+                                    hands_doc = DBtype.find_one({"_id": message.author.id})
+                                    if hands_doc:
+                                        hands = hands_doc['руки']                                      
+                                        current_date = datetime.datetime.now()
+                                        due_date = current_date + datetime.timedelta(days=5)
+                                        formatted_date = f"{due_date.day}.{due_date.month:02d}.{due_date.year} {due_date.hour:02d}:{due_date.minute:02d}"
+                                        if product in ['Тотем', 'Аватар', 'Плащ', 'GIF-Аватар']:
+                                            msg = f"🛒 Новый заказ:\n\n{product}\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+                                        else:
+                                            msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+                                        await target_thread.send(msg)
+                                        DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
+                                        self.send_to_target[message.channel.id] = 1
+                                        for attachment in message.attachments:
+                                            file = await attachment.to_file()
+                                            await target_thread.send(file=file)
+                                    else:
+                                        current_date = datetime.datetime.now()
+                                        due_date = current_date + datetime.timedelta(days=5)
+                                        formatted_date = f"{due_date.day}.{due_date.month:02d}.{due_date.year} {due_date.hour:02d}:{due_date.minute:02d}"
+                                        if product in ['Тотем', 'Аватар', 'Плащ', 'GIF-Аватар']:
+                                            msg = f"🛒 Новый заказ:\n\n{product}\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+                                        else:
+                                            msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+                                        await target_thread.send(msg)
+                                        DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
+                                        self.send_to_target[message.channel.id] = 1
+                                        for attachment in message.attachments:
+                                            file = await attachment.to_file()
+                                            await target_thread.send(file=file)
                                 else:
-                                    msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
-                                await target_thread.send(msg)
-                                DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
-                                self.send_to_target[message.channel.id] = 1
-                                for attachment in message.attachments:
-                                    file = await attachment.to_file()
-                                    await target_thread.send(file=file)
-                            else:
-                                await target_thread.send(f"{message.content}")
-                                for attachment in message.attachments:
-                                    file = await attachment.to_file()
-                                    await target_thread.send(file=file)
-                        
-                        else:
-                            if message.channel.id not in self.send_to_target:
-                                product = DBproduct.find_one({"_id": message.author.id})['товар']
-                                hands = DBtype.find_one({"_id": message.author.id})['руки']
-                                current_date = datetime.datetime.now()
-                                due_date = current_date + datetime.timedelta(days=5)
-                                formatted_date = f"{due_date.day}.{due_date.month:02d}.{due_date.year} {due_date.hour:02d}:{due_date.minute:02d}"
-                                if product in ['Тотем', 'Аватар', 'Плащ', 'GIF-Аватар']:
-                                    msg = f"🛒 Новый заказ:\n\n{product}\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
-                                else:
-                                    msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
-                                await target_thread.send(msg)
-                                DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
-                                self.send_to_target[message.channel.id] = 1
-                                for attachment in message.attachments:
-                                    file = await attachment.to_file()
-                                    await target_thread.send(file=file)
-                            else:
-                                try:
                                     await target_thread.send(f"{message.content}")
-                                except:
-                                    pass
-                                for attachment in message.attachments:
-                                    file = await attachment.to_file()
-                                    await target_thread.send(file=file)
+                                    for attachment in message.attachments:
+                                        file = await attachment.to_file()
+                                        await target_thread.send(file=file)
+                            
+                            else:
+                                if message.channel.id not in self.send_to_target:
+                                    product = DBproduct.find_one({"_id": message.author.id})['товар']
+                                    hands_doc = DBtype.find_one({"_id": message.author.id})
+                                    if hands_doc:
+                                        hands = hands_doc['руки']  
+                                        current_date = datetime.datetime.now()
+                                        due_date = current_date + datetime.timedelta(days=5)
+                                        formatted_date = f"{due_date.day}.{due_date.month:02d}.{due_date.year} {due_date.hour:02d}:{due_date.minute:02d}"
+                                        if product in ['Тотем', 'Аватар', 'Плащ', 'GIF-Аватар']:
+                                            msg = f"🛒 Новый заказ:\n\n{product}\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+                                        else:
+                                            msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+                                        await target_thread.send(msg)
+                                        DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
+                                        self.send_to_target[message.channel.id] = 1
+                                        for attachment in message.attachments:
+                                            file = await attachment.to_file()
+                                            await target_thread.send(file=file)
+                                    else:
+                                        current_date = datetime.datetime.now()
+                                        due_date = current_date + datetime.timedelta(days=5)
+                                        formatted_date = f"{due_date.day}.{due_date.month:02d}.{due_date.year} {due_date.hour:02d}:{due_date.minute:02d}"
+                                        if product in ['Тотем', 'Аватар', 'Плащ', 'GIF-Аватар']:
+                                            msg = f"🛒 Новый заказ:\n\n{product}\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+                                        else:
+                                            msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
+                                        await target_thread.send(msg)
+                                        DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
+                                        self.send_to_target[message.channel.id] = 1
+                                        for attachment in message.attachments:
+                                            file = await attachment.to_file()
+                                            await target_thread.send(file=file)
+                                else:
+                                    for attachment in message.attachments:
+                                        file = await attachment.to_file()
+                                        await target_thread.send(file=file)
 
-            elif target_thread:
-                synced_thread = synced_threads.find_one({"target_thread_id": target_thread.id})
-                if synced_thread:
-                    source_thread_id = synced_thread["source_thread_id"]
-                    source_thread = source_channel.get_thread(source_thread_id)
-                    if source_thread:
-                        if message.content:
-                            await source_thread.send(f"{message.content}")
-                        for attachment in message.attachments:
-                            file = await attachment.to_file()
-                            await source_thread.send(file=file)
+                elif target_thread:
+                    synced_thread = synced_threads.find_one({"target_thread_id": target_thread.id})
+                    if synced_thread:
+                        source_thread_id = synced_thread["source_thread_id"]
+                        source_thread = source_channel.get_thread(source_thread_id)
+                        if source_thread:
+                            if message.content:
+                                await source_thread.send(f"{message.content}")
+                            for attachment in message.attachments:
+                                file = await attachment.to_file()
+                                await source_thread.send(file=file)
 
     @commands.Cog.listener()
     async def on_thread_create(self, thread):
