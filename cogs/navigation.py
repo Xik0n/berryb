@@ -29,8 +29,10 @@ stars = paintersDB['rating']
 orders = paintersDB['orders']
 painter = paintersDB['paintersinfo']
 
+
 listsdb = cluster['lists']
 thread_messages_coll = listsdb['thread_messages']
+send_to_target_coll = listsdb['send_to_target']
 
 SECRET_KEY = "eyJ2ZXJzaW9uIjoiUDJQIiwiZGF0YSI6eyJwYXlpbl9tZXJjaGFudF9zaXRlX3VpZCI6InE0M3NiZC0wMCIsInVzZXJfaWQiOiI3OTE2Nzc1NTk3MCIsInNlY3JldCI6ImIzMDRmMzBiMWE1YjgwOGVkYTM1YzJiNmEyNjhjOWZjNjM4MjZkNmVlYjgxMTk5ZDU4NjAwNzhjMGNmNWZjMzgifX0="
 p2p = QiwiP2PClient(secret_p2p=SECRET_KEY, shim_server_url="http://bretail.space/proxy/p2p/")
@@ -206,17 +208,6 @@ class Navigation(commands.Cog):
         self.bot = bot
         bot.cd_map = commands.CooldownMapping.from_cooldown(1, 10, commands.BucketType.member)
         self.rating = {}
-        self.send_to_target = {}
-    
-    @commands.command()
-    async def a(self, inter):
-        self.send_to_target[1126148662364491888] = 1
-        self.send_to_target[1126147090951716944] = 1
-        self.send_to_target[1126146162030809189] = 1
-        self.send_to_target[1126146028983287959] = 1
-        self.send_to_target[1126146027259445268] = 1
-        print('done')
-
     
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -263,7 +254,8 @@ class Navigation(commands.Cog):
                         target_thread = target_channel.get_thread(target_thread_id)
                         if target_thread:
                             if message.content:
-                                if message.channel.id not in self.send_to_target:
+                                vl = send_to_target_coll.find_one({"msg": message.channel.id})['value']
+                                if int(vl) == 0:
                                     product = DBproduct.find_one({"_id": message.author.id})['товар']
                                     hands_doc = DBtype.find_one({"_id": message.author.id})
                                     if hands_doc:
@@ -277,7 +269,7 @@ class Navigation(commands.Cog):
                                             msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
                                         await target_thread.send(msg)
                                         DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
-                                        self.send_to_target[message.channel.id] = 1
+                                        send_to_target_coll.update_one({"msg": message.channel.id}, {"$set": {'value': 1}}, upsert=True)
                                         for attachment in message.attachments:
                                             file = await attachment.to_file()
                                             await target_thread.send(file=file)
@@ -291,7 +283,7 @@ class Navigation(commands.Cog):
                                             msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
                                         await target_thread.send(msg)
                                         DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
-                                        self.send_to_target[message.channel.id] = 1
+                                        send_to_target_coll.update_one({"msg": message.channel.id}, {"$set": {'value': 1}}, upsert=True)
                                         for attachment in message.attachments:
                                             file = await attachment.to_file()
                                             await target_thread.send(file=file)
@@ -302,7 +294,8 @@ class Navigation(commands.Cog):
                                         await target_thread.send(file=file)
                             
                             else:
-                                if message.channel.id not in self.send_to_target:
+                                vl = send_to_target_coll.find_one({"msg": message.channel.id})['value']
+                                if int(vl) == 0:
                                     product = DBproduct.find_one({"_id": message.author.id})['товар']
                                     hands_doc = DBtype.find_one({"_id": message.author.id})
                                     if hands_doc:
@@ -316,7 +309,7 @@ class Navigation(commands.Cog):
                                             msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
                                         await target_thread.send(msg)
                                         DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
-                                        self.send_to_target[message.channel.id] = 1
+                                        send_to_target_coll.update_one({"msg": message.channel.id}, {"$set": {'value': 1}}, upsert=True)
                                         for attachment in message.attachments:
                                             file = await attachment.to_file()
                                             await target_thread.send(file=file)
@@ -330,7 +323,7 @@ class Navigation(commands.Cog):
                                             msg = f"🛒 Новый заказ:\n\n{product}\n{hands} руки\n\nОписание товара: {message.content}\n\nСдать до {formatted_date}"
                                         await target_thread.send(msg)
                                         DBdates.update_one({"_id": message.author.id}, {"$set": {'date': str(formatted_date)}}, upsert=True)
-                                        self.send_to_target[message.channel.id] = 1
+                                        send_to_target_coll.update_one({"msg": message.channel.id}, {"$set": {'value': 1}}, upsert=True)
                                         for attachment in message.attachments:
                                             file = await attachment.to_file()
                                             await target_thread.send(file=file)
@@ -362,10 +355,7 @@ class Navigation(commands.Cog):
                 await existing_thread.delete()
             created_thread = await target_channel.create_thread(name=thread.name, type=disnake.ChannelType.private_thread)
             synced_threads.update_one({"source_thread_id": thread.id}, {"$set": {"target_thread_id": created_thread.id}}, upsert=True)
-            xikon = self.bot.get_user(768075509480292383)
-            nest = self.bot.get_user(986815186629455902)
-            msg = await created_thread.send(f'{xikon.mention} {nest.mention}')
-            await msg.delete()
+            send_to_target_coll.update_one({"msg": thread.id}, {"$set": {'value': 0}}, upsert=True)
     
     @commands.slash_command(name='оплатить', description='оплатить покупку')
     @commands.has_any_role(989929544704196618, 989527988959842345, 1061266758180286514, 1124021579702079588, 1124021498097704972)
@@ -378,7 +368,9 @@ class Navigation(commands.Cog):
             except:
                 pass
             await inter.send('Готово!', ephemeral=True)
+            
             await inter.channel.send(embed=disnake.Embed(description='Оплата прошла успешно!\nМы приняли ваш заказ и передали исполнителю.', color=0x52FF00))
+            else_artist = self.bot.get_user(986815186629455902)
             skin = DBproduct.find_one({"_id": inter.author.id})['товар']
             code_find = dbcode.find_one({"_id": "code"})
             code = code_find['number']
@@ -404,7 +396,7 @@ class Navigation(commands.Cog):
                 if synced_thread_doc:
                     source_thread_id = synced_thread_doc["target_thread_id"]
                 th = self.bot.get_channel(int(source_thread_id))
-                msg = await th.send(random_select_classic.mention)
+                msg = await th.send(random_select_classic.mentio, else_artist.mention)
                 await msg.delete()
                 date = DBdates.find_one({"_id": user.id})
                 if date:
@@ -427,7 +419,7 @@ class Navigation(commands.Cog):
                 if synced_thread_doc:
                     source_thread_id = synced_thread_doc["target_thread_id"]
                 th = self.bot.get_channel(int(source_thread_id))
-                msg = await th.send(random_select_future.mention)
+                msg = await th.send(random_select_future.mention, else_artist.mention)
                 await msg.delete()
                 date = DBdates.find_one({"_id": user.id})
                 if date:
@@ -450,7 +442,7 @@ class Navigation(commands.Cog):
                 if synced_thread_doc:
                     source_thread_id = synced_thread_doc["target_thread_id"]
                 th = self.bot.get_channel(int(source_thread_id))
-                msg = await th.send(random_select_modern.mention)
+                msg = await th.send(random_select_modern.mention, else_artist.mention)
                 await msg.delete()
                 date = DBdates.find_one({"_id": user.id})
                 if date:
@@ -558,7 +550,7 @@ class Navigation(commands.Cog):
                         if synced_thread_doc:
                             source_thread_id = synced_thread_doc["target_thread_id"]
                         th = self.bot.get_channel(int(source_thread_id))
-                        msg = await th.send(random_select_classic.mention)
+                        msg = await th.send(random_select_classic.mention, else_artist.mention)
                         await msg.delete()
                         date = DBdates.find_one({"_id": inter.author.id})
                         if date:
@@ -581,7 +573,7 @@ class Navigation(commands.Cog):
                         if synced_thread_doc:
                             source_thread_id = synced_thread_doc["target_thread_id"]
                         th = self.bot.get_channel(int(source_thread_id))
-                        msg = await th.send(random_select_future.mention)
+                        msg = await th.send(random_select_future.mention, else_artist.mention)
                         await msg.delete()
                         date = DBdates.find_one({"_id": inter.author.id})
                         if date:
@@ -604,7 +596,7 @@ class Navigation(commands.Cog):
                         if synced_thread_doc:
                             source_thread_id = synced_thread_doc["target_thread_id"]
                         th = self.bot.get_channel(int(source_thread_id))
-                        msg = await th.send(random_select_modern.mention)
+                        msg = await th.send(random_select_modern.mention, else_artist.mention)
                         await msg.delete()
                         date = DBdates.find_one({"_id": inter.author.id})
                         if date:
@@ -757,7 +749,18 @@ class Navigation(commands.Cog):
                     await asyncio.sleep(10)
                     await inter.channel.delete()
                     del self.rating[int(inter.author.id)]
-                    painter.update_many({"_id": int(user_id)}, {"$inc": {"getprice": 70, "zakazs": 1}}, upsert=True)
+                    if int(user_id) == 986815186629455902:
+                        product_find = DBproduct.find_one({"_id": inter.author.id})['товар']
+                        if product_find == 'Плащ':
+                            painter.update_many({"_id": 986815186629455902}, {"$inc": {"getprice": 50, "zakazs": 1}}, upsert=True)
+                        if product_find == 'Тотем':
+                            painter.update_many({"_id": 986815186629455902}, {"$inc": {"getprice": 25, "zakazs": 1}}, upsert=True)
+                        if product_find == 'Аватар':
+                            painter.update_many({"_id": 986815186629455902}, {"$inc": {"getprice": 40, "zakazs": 1}}, upsert=True)
+                        if product_find == 'GIF-Аватар':
+                            painter.update_many({"_id": 986815186629455902}, {"$inc": {"getprice": 110, "zakazs": 1}}, upsert=True)
+                    else:
+                        painter.update_many({"_id": int(user_id)}, {"$inc": {"getprice": 70, "zakazs": 1}}, upsert=True)
                     servers.update_one({"_id": "count"}, {"$inc": {"zakaz": 1}}, upsert=True)
                     synced_thread = synced_threads.find_one({"source_thread_id": inter.channel.id})
                     if synced_thread:
